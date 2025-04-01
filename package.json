@@ -1,0 +1,57 @@
+{
+  "name": "clearcase-tools",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "@ffmpeg/ffmpeg": "^0.12.9",
+    "@ffmpeg/util": "^0.12.1",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.2.0",
+    "@testing-library/user-event": "^13.5.0",
+    "@uiw/react-md-editor": "^4.0.5",
+    "easymde": "^2.20.0",
+    "html-docx-js-typescript": "^0.1.5",
+    "mammoth": "^1.9.0",
+    "pdfjs-dist": "^3.11.174",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-markdown": "^10.1.0",
+    "react-router-dom": "^7.3.0",
+    "react-scripts": "5.0.1",
+    "react-simplemde-editor": "^5.2.0",
+    "rehype-raw": "^7.0.0",
+    "remark-gfm": "^4.0.1",
+    "showdown": "^2.1.0",
+    "suneditor": "^2.47.5",
+    "suneditor-react": "^3.6.1",
+    "turndown": "^7.2.0",
+    "web-vitals": "^2.1.4"
+  },
+  "scripts": {
+    "start": "cross-env REACT_APP_MODE=development HTTPS=true BROWSER=none set \"REACT_APP_COOP=same-origin\" && set \"REACT_APP_COEP=require-corp\" && react-scripts start",
+    "build": "cross-env REACT_APP_MODE=production react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject"
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "devDependencies": {
+    "cross-env": "^7.0.3"
+  }
+} 
