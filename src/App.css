@@ -382,4 +382,194 @@
   .action-buttons button {
     width: 100%;
   }
+}
+
+/* Audio Compressor Styles */
+.audio-compressor {
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.audio-compressor .form-group {
+  margin-bottom: 1rem;
+}
+
+.audio-compressor .form-label {
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+  display: block;
+}
+
+.audio-compressor .form-control {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.audio-compressor .file-info {
+  margin: 1rem 0;
+  padding: 0.75rem;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+  border: 1px solid #e9ecef;
+}
+
+.audio-compressor .audio-preview {
+  width: 100%;
+  margin: 1rem 0;
+}
+
+.audio-compressor .button {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.audio-compressor .button-primary {
+  background-color: #007bff;
+  color: white;
+}
+
+.audio-compressor .button-primary:hover {
+  background-color: #0069d9;
+}
+
+.audio-compressor .button-primary:disabled {
+  background-color: #86b7fe;
+  cursor: not-allowed;
+}
+
+.audio-compressor .button-success {
+  background-color: #28a745;
+  color: white;
+  margin-top: 0.5rem;
+}
+
+.audio-compressor .button-success:hover {
+  background-color: #218838;
+}
+
+.audio-compressor .progress-container {
+  margin: 1rem 0;
+}
+
+.audio-compressor .progress-bar {
+  height: 1rem;
+  background-color: #e9ecef;
+  border-radius: 0.25rem;
+  overflow: hidden;
+}
+
+.audio-compressor .progress-fill {
+  height: 100%;
+  background-color: #007bff;
+  transition: width 0.3s ease;
+}
+
+.audio-compressor .progress-text {
+  text-align: center;
+  margin-top: 0.25rem;
+  font-size: 0.875rem;
+}
+
+.audio-compressor .compressed-result {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background-color: #f8f9fa;
+}
+
+.audio-compressor .original-audio {
+  margin: 1rem 0;
+  padding: 1rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background-color: #f8f9fa;
+}
+
+.audio-compressor .compression-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+  margin: 1rem 0;
+}
+
+.audio-compressor .status-message {
+  margin: 1rem 0;
+  padding: 0.75rem;
+  background-color: #e8f4fd;
+  border-radius: 4px;
+  border-left: 4px solid #007bff;
+  color: #0d6efd;
+}
+
+.audio-compressor .alert-error {
+  color: #721c24;
+  background-color: #f8d7da;
+  border: 1px solid #f5c6cb;
+  border-radius: 4px;
+  padding: 0.75rem 1.25rem;
+  margin-bottom: 1rem;
+}
+
+/* Add media queries for responsiveness */
+@media (max-width: 768px) {
+  .audio-compressor .compression-options {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* CORS Instructions Styling */
+.cors-instructions {
+  margin-top: 2rem;
+  padding: 1.5rem;
+  background-color: #f8f9fa;
+  border-left: 4px solid #17a2b8;
+  border-radius: 4px;
+}
+
+.cors-instructions h3 {
+  color: #17a2b8;
+  margin-top: 0;
+}
+
+.cors-instructions details {
+  margin: 1rem 0;
+}
+
+.cors-instructions summary {
+  cursor: pointer;
+  padding: 0.5rem;
+  background-color: #e9ecef;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.cors-instructions .technical-solution {
+  margin-top: 1rem;
+  padding: 1rem;
+  background-color: #f1f1f1;
+  border-radius: 4px;
+}
+
+.cors-instructions pre {
+  background-color: #212529;
+  color: #f8f9fa;
+  padding: 1rem;
+  border-radius: 4px;
+  overflow-x: auto;
+  font-family: monospace;
+  margin: 0.5rem 0;
+}
+
+/* Add media queries for responsiveness */
+@media (max-width: 768px) {
+  .audio-compressor .compression-options {
+    grid-template-columns: 1fr;
+  }
 } 

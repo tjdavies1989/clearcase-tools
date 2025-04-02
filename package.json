@@ -10,6 +10,7 @@
     "@testing-library/user-event": "^13.5.0",
     "@uiw/react-md-editor": "^4.0.5",
     "easymde": "^2.20.0",
+    "express": "^5.1.0",
     "html-docx-js-typescript": "^0.1.5",
     "mammoth": "^1.9.0",
     "pdfjs-dist": "^3.11.174",
@@ -30,6 +31,7 @@
   "scripts": {
     "start": "cross-env REACT_APP_MODE=development HTTPS=true BROWSER=none set \"REACT_APP_COOP=same-origin\" && set \"REACT_APP_COEP=require-corp\" && react-scripts start",
     "build": "cross-env REACT_APP_MODE=production react-scripts build",
+    "serve": "node server.js",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },
@@ -52,6 +54,9 @@
     ]
   },
   "devDependencies": {
-    "cross-env": "^7.0.3"
+    "cross-env": "^7.0.3",
+    "eslint": "^8.57.1",
+    "eslint-plugin-react": "^7.37.4",
+    "prettier": "^3.5.3"
   }
-} 
+}

@@ -11,8 +11,17 @@
     />
     <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
     <title>ClearCase Tools</title>
+    
+    <!-- Security headers for CORS -->
     <meta http-equiv="Cross-Origin-Opener-Policy" content="same-origin" />
     <meta http-equiv="Cross-Origin-Embedder-Policy" content="require-corp" />
+    <meta http-equiv="Cross-Origin-Resource-Policy" content="cross-origin" />
+    
+    <!-- Preload FFmpeg assets from multiple CDNs for better reliability -->
+    <link rel="preload" href="https://unpkg.com/@ffmpeg/core@0.12.6/dist/ffmpeg-core.js" as="script" crossorigin="anonymous" />
+    <link rel="preload" href="https://unpkg.com/@ffmpeg/core@0.12.6/dist/ffmpeg-core.wasm" as="fetch" crossorigin="anonymous" />
+    <link rel="preload" href="https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/ffmpeg-core.js" as="script" crossorigin="anonymous" />
+    <link rel="preload" href="https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/ffmpeg-core.wasm" as="fetch" crossorigin="anonymous" />
   </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
