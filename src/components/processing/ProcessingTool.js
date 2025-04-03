@@ -1,8 +1,8 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import SunEditor from 'suneditor-react';
 import 'suneditor/dist/css/suneditor.min.css';
-import { htmlToMarkdown, markdownToHtml } from '../../utils/formatConverter';
+import { htmlToMarkdown, markdownToHtml, fileToHtml } from '../../utils/formatConverter';
 import { asBlob } from 'html-docx-js-typescript';
 import config from '../../config';
 
@@ -15,8 +15,10 @@ const ProcessingTool = () => {
   const [templateContent, setTemplateContent] = useState('');
   const [processedResult, setProcessedResult] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isConvertingPdf, setIsConvertingPdf] = useState(false);
   const [error, setError] = useState(null);
   const resultRef = useRef(null);
+  const [selectedTemplate, setSelectedTemplate] = useState('');
   
   // SunEditor options
   const editorOptions = {
@@ -82,11 +84,11 @@ const ProcessingTool = () => {
           'Authorization': `Bearer ${config.openaiApiKey}`
         },
         body: JSON.stringify({
-          model: 'gpt-4o-mini',
+          model: config.modelSettings.documentProcessing.model,
           messages,
-          max_tokens: 16000,
-          temperature: 0,
-          response_format: { type: "text" } // Ensures raw text output
+          max_tokens: config.modelSettings.documentProcessing.maxTokens,
+          temperature: config.modelSettings.documentProcessing.temperature,
+          response_format: config.modelSettings.documentProcessing.responseFormat
         })
       });
       
@@ -251,7 +253,7 @@ const ProcessingTool = () => {
     URL.revokeObjectURL(url);
   };
   
-  const handleFileUpload = (e, fileType) => {
+  const handleFileUpload = async (e, fileType) => {
     const file = e.target.files[0];
     if (!file) return;
     
@@ -265,38 +267,157 @@ const ProcessingTool = () => {
         break;
       case 'template':
         setTemplateFile(file);
+        // Clear dropdown selection when file is uploaded
+        setSelectedTemplate('');
+        setTemplateContent('');
         break;
       default:
         break;
     }
     
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const content = event.target.result;
+    setError(null);
+    
+    try {
+      if (fileType === 'instruction' && 
+          (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf'))) {
+        // Handle PDF conversion for instruction file
+        setIsConvertingPdf(true);
+        
+        try {
+          // Convert PDF to HTML (without images)
+          const instructionHtml = await fileToHtml(file);
+          // Convert HTML to plain text for API consumption
+          const instructionText = htmlToMarkdown(instructionHtml);
+          
+          if (!instructionText || instructionText.trim() === '') {
+            throw new Error('No text could be extracted from the PDF. The file may be image-based or protected.');
+          }
+          
+          setInstructionContent(instructionText);
+        } catch (conversionError) {
+          console.error('PDF conversion error:', conversionError);
+          throw new Error(`PDF conversion failed: ${conversionError.message}. Try uploading a text or HTML file instead.`);
+        } finally {
+          setIsConvertingPdf(false);
+        }
+      } else if ((fileType === 'instruction' || fileType === 'template') && 
+                (file.type === 'text/html' || 
+                 file.name.toLowerCase().endsWith('.html') || 
+                 file.name.toLowerCase().endsWith('.htm'))) {
+        // Handle HTML files
+        try {
+          const htmlContent = await fileToHtml(file);
+          const markdownText = htmlToMarkdown(htmlContent);
+          
+          if (fileType === 'instruction') {
+            setInstructionContent(markdownText);
+          } else {
+            setTemplateContent(markdownText);
+          }
+        } catch (htmlError) {
+          throw new Error(`Failed to process HTML file: ${htmlError.message}`);
+        }
+      } else if (file.type === 'text/plain' || 
+                file.type === 'text/markdown' || 
+                file.name.endsWith('.md') || 
+                file.name.endsWith('.txt')) {
+        // Handle text files with standard method
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const content = event.target.result;
+          
+          // Set the content based on file type
+          switch(fileType) {
+            case 'transcription':
+              setTranscriptionContent(content);
+              break;
+            case 'instruction':
+              setInstructionContent(content);
+              break;
+            case 'template':
+              setTemplateContent(content);
+              break;
+            default:
+              break;
+          }
+        };
+        
+        reader.onerror = () => {
+          setError('Failed to read the file');
+        };
+        
+        reader.readAsText(file);
+      } else {
+        if (fileType === 'instruction') {
+          throw new Error('Please upload a text, HTML, PDF, or markdown file for Letter of Instruction');
+        } else if (fileType === 'template') {
+          throw new Error('Please upload a text, HTML, or markdown file for Template');
+        } else {
+          throw new Error('Please upload a text or markdown file for Transcription');
+        }
+      }
+    } catch (err) {
+      console.error('File upload error:', err);
+      setError(err.message);
       
-      // Set the content based on file type
+      // Reset the file state on error
       switch(fileType) {
         case 'transcription':
-          setTranscriptionContent(content);
+          setTranscriptionFile(null);
           break;
         case 'instruction':
-          setInstructionContent(content);
+          setInstructionFile(null);
           break;
         case 'template':
-          setTemplateContent(content);
+          setTemplateFile(null);
           break;
         default:
           break;
       }
-    };
-    reader.onerror = () => {
-      setError('Failed to read the file');
+    }
+  };
+  
+  // Load template from predefined templates when selected
+  useEffect(() => {
+    const loadPredefinedTemplate = async () => {
+      if (!selectedTemplate) return;
+      
+      try {
+        // Find the selected template in config
+        const templateInfo = config.templates.find(t => t.id === selectedTemplate);
+        if (!templateInfo) return;
+        
+        // Fetch the template file
+        const response = await fetch(templateInfo.path);
+        if (!response.ok) {
+          throw new Error(`Failed to load template: ${response.statusText}`);
+        }
+        
+        const content = await response.text();
+        setTemplateContent(content);
+        setTemplateFile({
+          name: `${templateInfo.name} (Predefined)`,
+          type: 'text/plain',
+          isPreDefined: true
+        });
+      } catch (err) {
+        console.error('Template loading error:', err);
+        setError(`Failed to load template: ${err.message}`);
+        setSelectedTemplate('');
+      }
     };
     
-    if (file.type === 'text/plain' || file.type === 'text/markdown' || file.name.endsWith('.md') || file.name.endsWith('.txt')) {
-      reader.readAsText(file);
-    } else {
-      setError('Please upload a plain text or markdown file');
+    loadPredefinedTemplate();
+  }, [selectedTemplate]);
+  
+  // Handle template selection change 
+  const handleTemplateSelect = (e) => {
+    const templateId = e.target.value;
+    setSelectedTemplate(templateId);
+    
+    // Clear uploaded file if a template is selected from dropdown
+    if (templateId) {
+      setTemplateFile(null);
     }
   };
   
@@ -314,6 +435,7 @@ const ProcessingTool = () => {
         <div className="file-upload-item">
           <h3>Transcription</h3>
           <p className="required-label">Required</p>
+          <p className="file-format-info">Supports: Text, Markdown</p>
           <label htmlFor="transcription-file-input" className="file-label">
             {transcriptionFile ? transcriptionFile.name : 'Select Transcription File'}
             <input 
@@ -330,12 +452,14 @@ const ProcessingTool = () => {
         <div className="file-upload-item">
           <h3>Letter of Instruction</h3>
           <p className="required-label">Required</p>
+          <p className="file-format-info">Supports: Text, HTML, PDF, Markdown</p>
+          <p className="file-format-warning">Note: PDFs are converted to text only. Image-based or protected PDFs may not convert properly.</p>
           <label htmlFor="instruction-file-input" className="file-label">
             {instructionFile ? instructionFile.name : 'Select Letter of Instruction'}
             <input 
               id="instruction-file-input"
               type="file" 
-              accept=".txt,.md,text/plain,text/markdown" 
+              accept=".txt,.md,.pdf,.html,.htm,text/plain,text/markdown,application/pdf,text/html" 
               onChange={(e) => handleFileUpload(e, 'instruction')}
               style={{ display: 'none' }}
               disabled={isProcessing}
@@ -346,17 +470,41 @@ const ProcessingTool = () => {
         <div className="file-upload-item">
           <h3>Template</h3>
           <p className="optional-label">Optional</p>
-          <label htmlFor="template-file-input" className="file-label">
-            {templateFile ? templateFile.name : 'Select Template File'}
-            <input 
-              id="template-file-input"
-              type="file" 
-              accept=".txt,.md,text/plain,text/markdown" 
-              onChange={(e) => handleFileUpload(e, 'template')}
-              style={{ display: 'none' }}
-              disabled={isProcessing}
-            />
-          </label>
+          <p className="file-format-info">Supports: Text, HTML, Markdown</p>
+          <div className="template-selection">
+            <div className="template-dropdown">
+              <label htmlFor="template-select" className="form-label">Select a predefined template:</label>
+              <select 
+                id="template-select"
+                className="form-control"
+                value={selectedTemplate}
+                onChange={handleTemplateSelect}
+                disabled={isProcessing || templateFile && !templateFile.isPreDefined}
+              >
+                <option value="">-- Select a template --</option>
+                {config.templates.map(template => (
+                  <option key={template.id} value={template.id}>
+                    {template.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            
+            <div className="template-upload">
+              <p className="divider-text">- OR -</p>
+              <label htmlFor="template-file-input" className="file-label">
+                {templateFile && !templateFile.isPreDefined ? templateFile.name : 'Upload custom template'}
+                <input 
+                  id="template-file-input"
+                  type="file" 
+                  accept=".txt,.md,.html,.htm,text/plain,text/markdown,text/html" 
+                  onChange={(e) => handleFileUpload(e, 'template')}
+                  style={{ display: 'none' }}
+                  disabled={isProcessing || !!selectedTemplate}
+                />
+              </label>
+            </div>
+          </div>
         </div>
       </div>
       
@@ -368,10 +516,10 @@ const ProcessingTool = () => {
         {isProcessing ? 'Processing...' : 'Process Document'}
       </button>
       
-      {isProcessing && (
+      {(isProcessing || isConvertingPdf) && (
         <div className="processing-indicator">
           <div className="spinner"></div>
-          <p>Processing your document...</p>
+          <p>{isConvertingPdf ? 'Converting PDF...' : 'Processing your document...'}</p>
         </div>
       )}
       

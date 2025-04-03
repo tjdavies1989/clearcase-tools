@@ -1,0 +1,91 @@
+# PSYCHIATRIC ASSESSMENT REPORT
+
+**Instructing Solicitor:** [Solicitor Name]
+**Firm:** [Firm Name]
+**Address:** [Firm Address]
+**Email:** [Email Address]
+**Telephone:** [Telephone Number]
+
+**Court Reference:** [Court/Tribunal]
+**Our Reference:** [Reference Number]
+**Date of Request:** [Date of Request]
+
+---
+
+## EXPERT DETAILS
+
+**Name:** [Expert Name]
+**Qualifications:** [Expert Qualifications]
+**Date of Report:** [Date of Report]
+
+---
+
+## EXAMINEE DETAILS
+
+**Name:** [Examinee Name]
+**Date of Birth:** [Examinee DOB]
+**Age:** [Age] years
+**Occupation:** [Occupation]
+**Date of Assessment:** [Assessment Date]
+
+---
+
+## EXPERT WITNESS CODE OF CONDUCT
+
+[Expert Witness Code Content]
+
+---
+
+## MATERIALS PROVIDED
+
+1. [Material 1]
+2. [Material 2]
+3. [Material 3]
+
+---
+
+## PSYCHIATRIC HISTORY
+
+[Psychiatric history to be completed by the expert]
+
+---
+
+## MENTAL STATE EXAMINATION
+
+[Mental state examination to be completed by the expert]
+
+---
+
+## DIAGNOSIS
+
+[Diagnosis to be completed by the expert]
+
+---
+
+## OPINION
+
+### Question 1
+**[Question text goes here]**
+
+[Space for answer]
+
+### Question 2
+**[Question text goes here]**
+
+[Space for answer]
+
+---
+
+## TREATMENT RECOMMENDATIONS
+
+[Treatment recommendations to be completed by the expert]
+
+---
+
+## DECLARATION
+
+I confirm that I have made all the inquiries that I believe are desirable and appropriate and that no matters of significance which I regard as relevant have, to my knowledge, been withheld from the Court.
+
+[Expert Name]
+[Expert Qualifications]
+[Date] 

@@ -1,8 +1,8 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import SunEditor from 'suneditor-react';
 import 'suneditor/dist/css/suneditor.min.css';
-import { htmlToMarkdown, markdownToHtml } from '../../utils/formatConverter';
+import { htmlToMarkdown, markdownToHtml, fileToHtml } from '../../utils/formatConverter';
 import { asBlob } from 'html-docx-js-typescript';
 import config from '../../config';
 
@@ -13,8 +13,48 @@ const TemplateGenerator = () => {
   const [templateFile, setTemplateFile] = useState(null);
   const [reportContent, setReportContent] = useState('');
   const [error, setError] = useState(null);
+  const [isConvertingPdf, setIsConvertingPdf] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState('');
+  const [templateContent, setTemplateContent] = useState('');
   const resultRef = useRef(null);
   const editorRef = useRef(null);
+  
+  // Load template from predefined templates when selected
+  useEffect(() => {
+    const loadPredefinedTemplate = async () => {
+      if (!selectedTemplate) return;
+      
+      try {
+        // Find the selected template in config
+        const templateInfo = config.templates.find(t => t.id === selectedTemplate);
+        if (!templateInfo) return;
+        
+        setMessage(`Loading template: ${templateInfo.name}...`);
+        
+        // Fetch the template file
+        const response = await fetch(templateInfo.path);
+        if (!response.ok) {
+          throw new Error(`Failed to load template: ${response.statusText}`);
+        }
+        
+        const content = await response.text();
+        setTemplateContent(content);
+        setTemplateFile({
+          name: `${templateInfo.name} (Predefined)`,
+          type: 'text/plain',
+          isPreDefined: true
+        });
+        
+        setMessage('Template loaded successfully');
+      } catch (err) {
+        console.error('Template loading error:', err);
+        setError(`Failed to load template: ${err.message}`);
+        setSelectedTemplate('');
+      }
+    };
+    
+    loadPredefinedTemplate();
+  }, [selectedTemplate]);
   
   // Handle file selection for each file type
   const handleFileChange = (e, fileType) => {
@@ -28,6 +68,9 @@ const TemplateGenerator = () => {
         break;
       case 'template':
         setTemplateFile(file);
+        // Clear dropdown selection when file is uploaded
+        setSelectedTemplate('');
+        setTemplateContent('');
         break;
       default:
         break;
@@ -36,7 +79,7 @@ const TemplateGenerator = () => {
   
   // Process files with AI
   const generateTemplate = async () => {
-    if (!instructionFile || !templateFile) {
+    if (!instructionFile || (!templateFile && !templateContent)) {
       setMessage('Error: Letter of Instruction and Blank Template are required');
       setError('Letter of Instruction and Blank Template are required');
       return;
@@ -47,9 +90,62 @@ const TemplateGenerator = () => {
     setError(null);
     
     try {
-      // Read files as text
-      const instructionText = await readFileAsText(instructionFile);
-      const templateText = await readFileAsText(templateFile);
+      // Process the instruction file based on its type
+      let instructionText;
+      
+      // Check if it's a PDF that needs conversion
+      if (instructionFile.type === 'application/pdf' || 
+          instructionFile.name.toLowerCase().endsWith('.pdf')) {
+        setMessage('Converting PDF to text...');
+        setIsConvertingPdf(true);
+        
+        try {
+          // Convert PDF to HTML (without images)
+          const instructionHtml = await fileToHtml(instructionFile);
+          // Convert HTML to plain text for API consumption
+          instructionText = htmlToMarkdown(instructionHtml);
+          
+          if (!instructionText || instructionText.trim() === '') {
+            throw new Error('No text could be extracted from the PDF. The file may be image-based or protected.');
+          }
+        } catch (conversionError) {
+          console.error('PDF conversion error:', conversionError);
+          throw new Error(`PDF conversion failed: ${conversionError.message}. Try uploading a text or HTML file instead.`);
+        } finally {
+          setIsConvertingPdf(false);
+        }
+      } else if (instructionFile.type === 'text/html' || 
+                 instructionFile.name.toLowerCase().endsWith('.html') || 
+                 instructionFile.name.toLowerCase().endsWith('.htm')) {
+        // Handle HTML files
+        try {
+          const htmlContent = await fileToHtml(instructionFile);
+          instructionText = htmlToMarkdown(htmlContent);
+        } catch (htmlError) {
+          throw new Error(`Failed to process HTML file: ${htmlError.message}`);
+        }
+      } else {
+        // Handle text and other files
+        try {
+          instructionText = await readFileAsText(instructionFile);
+        } catch (textError) {
+          throw new Error(`Failed to read text file: ${textError.message}`);
+        }
+      }
+      
+      // Get template text - either from uploaded file or selected predefined template
+      let templateText;
+      if (templateContent) {
+        templateText = templateContent;
+      } else {
+        try {
+          templateText = await readFileAsText(templateFile);
+        } catch (templateError) {
+          throw new Error(`Failed to read template file: ${templateError.message}`);
+        }
+      }
+      
+      setMessage('Processing with AI...');
       
       // Format the messages for the API
       const messages = [
@@ -72,11 +168,11 @@ const TemplateGenerator = () => {
           'Authorization': `Bearer ${config.openaiApiKey}`
         },
         body: JSON.stringify({
-          model: 'gpt-4o-mini',
+          model: config.modelSettings.templateGeneration.model,
           messages,
-          max_tokens: 16000,
-          temperature: 0,
-          response_format: { type: "text" } // Ensures raw text output
+          max_tokens: config.modelSettings.templateGeneration.maxTokens,
+          temperature: config.modelSettings.templateGeneration.temperature,
+          response_format: config.modelSettings.templateGeneration.responseFormat
         })
       });
       
@@ -301,6 +397,17 @@ const TemplateGenerator = () => {
     ]
   };
 
+  // Handle template selection change
+  const handleTemplateSelect = (e) => {
+    const templateId = e.target.value;
+    setSelectedTemplate(templateId);
+    
+    // Clear uploaded file if a template is selected from dropdown
+    if (templateId) {
+      setTemplateFile(null);
+    }
+  };
+
   return (
     <div className="template-generator">
       <Link to="/" className="back-button">← Back to Tools</Link>
@@ -316,12 +423,13 @@ const TemplateGenerator = () => {
         <div className="file-upload-item">
           <h3>Letter of Instruction</h3>
           <p className="required-label">Required</p>
+          <p className="file-format-info">Supports: Text, HTML, PDF</p>
           <label htmlFor="instruction-file-input" className="file-label">
             {instructionFile ? instructionFile.name : 'Select Letter of Instruction'}
             <input 
               id="instruction-file-input"
               type="file" 
-              accept=".txt,.md,.markdown,.doc,.docx,.pdf" 
+              accept=".txt,.md,.markdown,.html,.htm,.pdf" 
               onChange={(e) => handleFileChange(e, 'instruction')}
               style={{ display: 'none' }}
             />
@@ -331,23 +439,47 @@ const TemplateGenerator = () => {
         <div className="file-upload-item">
           <h3>Blank Template</h3>
           <p className="required-label">Required</p>
-          <label htmlFor="template-file-input" className="file-label">
-            {templateFile ? templateFile.name : 'Select Blank Template'}
-            <input 
-              id="template-file-input"
-              type="file" 
-              accept=".txt,.md,.markdown,.doc,.docx" 
-              onChange={(e) => handleFileChange(e, 'template')}
-              style={{ display: 'none' }}
-            />
-          </label>
+          <div className="template-selection">
+            <div className="template-dropdown">
+              <label htmlFor="template-select" className="form-label">Select a predefined template:</label>
+              <select 
+                id="template-select"
+                className="form-control"
+                value={selectedTemplate}
+                onChange={handleTemplateSelect}
+                disabled={isProcessing || templateFile && !templateFile.isPreDefined}
+              >
+                <option value="">-- Select a template --</option>
+                {config.templates.map(template => (
+                  <option key={template.id} value={template.id}>
+                    {template.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            
+            <div className="template-upload">
+              <p className="divider-text">- OR -</p>
+              <label htmlFor="template-file-input" className="file-label">
+                {templateFile && !templateFile.isPreDefined ? templateFile.name : 'Upload custom template'}
+                <input 
+                  id="template-file-input"
+                  type="file" 
+                  accept=".txt,.md,.markdown,.doc,.docx" 
+                  onChange={(e) => handleFileChange(e, 'template')}
+                  style={{ display: 'none' }}
+                  disabled={isProcessing || !!selectedTemplate}
+                />
+              </label>
+            </div>
+          </div>
         </div>
       </div>
       
       <button 
         className="button button-primary" 
         onClick={generateTemplate} 
-        disabled={isProcessing || !instructionFile || !templateFile}
+        disabled={isProcessing || !instructionFile || (!templateFile && !templateContent)}
       >
         Generate Template
       </button>
@@ -355,7 +487,7 @@ const TemplateGenerator = () => {
       {isProcessing && (
         <div className="processing-indicator">
           <div className="spinner"></div>
-          <span>Generating...</span>
+          <span>{isConvertingPdf ? 'Converting PDF...' : 'Generating...'}</span>
         </div>
       )}
       

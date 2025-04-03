@@ -1,10 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { loadFFmpeg, compressAudio } from './ffmpegSetup';
+import { loadFFmpeg, compressAudio, concatenateAudioFiles, concatenateM4aFiles } from './ffmpegSetup';
 import config from '../../config';
 
 const AudioCompressor = () => {
+  // Original state for single file compression
   const [file, setFile] = useState(null);
+  
+  // New state for multi-file concatenation
+  const [isMultiFileMode, setIsMultiFileMode] = useState(false);
+  const [audioFiles, setAudioFiles] = useState([]);
+  
+  // Common state
   const [format, setFormat] = useState('mp3');
   const [bitrate, setBitrate] = useState('128k');
   const [sampleRate, setSampleRate] = useState('44100');
@@ -91,9 +98,42 @@ const AudioCompressor = () => {
       if (compressedFile && compressedFile.url) {
         URL.revokeObjectURL(compressedFile.url);
       }
+      
+      // Cleanup audio preview URLs for multiple files
+      audioFiles.forEach(file => {
+        if (file.previewUrl) {
+          URL.revokeObjectURL(file.previewUrl);
+        }
+      });
     };
   }, []);
   
+  // Toggle between single file and multi-file mode
+  const toggleMode = () => {
+    if (isProcessing) return;
+    
+    setIsMultiFileMode(prev => !prev);
+    
+    // Reset the state when toggling modes
+    setFile(null);
+    setAudioFiles([]);
+    setCompressedFile(null);
+    setError(null);
+    
+    if (originalAudioUrl) {
+      URL.revokeObjectURL(originalAudioUrl);
+      setOriginalAudioUrl(null);
+    }
+    
+    // Clean up audio previews when switching modes
+    audioFiles.forEach(file => {
+      if (file.previewUrl) {
+        URL.revokeObjectURL(file.previewUrl);
+      }
+    });
+  };
+  
+  // Single file selection
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
     if (selectedFile && selectedFile.type.startsWith('audio/')) {
@@ -112,6 +152,78 @@ const AudioCompressor = () => {
       setFile(null);
       setOriginalAudioUrl(null);
     }
+  };
+  
+  // Multiple file selection
+  const handleMultipleFileChange = (e) => {
+    const selectedFiles = Array.from(e.target.files);
+    const validFiles = selectedFiles.filter(file => file.type.startsWith('audio/'));
+    
+    if (validFiles.length === 0) {
+      if (selectedFiles.length > 0) {
+        setError('Please select valid audio files');
+      }
+      return;
+    }
+    
+    // Clear error if valid files are selected
+    setError(null);
+    setCompressedFile(null);
+    
+    // Add the new files to the list with preview URLs
+    const newFiles = validFiles.map(file => ({
+      file,
+      id: `file-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+      previewUrl: URL.createObjectURL(file)
+    }));
+    
+    setAudioFiles(prev => [...prev, ...newFiles]);
+  };
+  
+  // Move a file up in the list (earlier in concatenation order)
+  const moveFileUp = (id) => {
+    setAudioFiles(prev => {
+      const index = prev.findIndex(file => file.id === id);
+      if (index <= 0) return prev;
+      
+      const newFiles = [...prev];
+      const temp = newFiles[index];
+      newFiles[index] = newFiles[index - 1];
+      newFiles[index - 1] = temp;
+      
+      return newFiles;
+    });
+  };
+  
+  // Move a file down in the list (later in concatenation order)
+  const moveFileDown = (id) => {
+    setAudioFiles(prev => {
+      const index = prev.findIndex(file => file.id === id);
+      if (index < 0 || index >= prev.length - 1) return prev;
+      
+      const newFiles = [...prev];
+      const temp = newFiles[index];
+      newFiles[index] = newFiles[index + 1];
+      newFiles[index + 1] = temp;
+      
+      return newFiles;
+    });
+  };
+  
+  // Remove a file from the list
+  const removeFile = (id) => {
+    setAudioFiles(prev => {
+      // Find the file to remove
+      const fileToRemove = prev.find(file => file.id === id);
+      
+      // Release the preview URL
+      if (fileToRemove && fileToRemove.previewUrl) {
+        URL.revokeObjectURL(fileToRemove.previewUrl);
+      }
+      
+      // Filter out the file
+      return prev.filter(file => file.id !== id);
+    });
   };
   
   const handleFormatChange = (e) => {
@@ -134,6 +246,16 @@ const AudioCompressor = () => {
     setCompressedFile(null);
   };
   
+  // Process button click handler
+  const handleProcess = async () => {
+    if (isMultiFileMode) {
+      await handleConcatenate();
+    } else {
+      await handleCompress();
+    }
+  };
+  
+  // Single file compression
   const handleCompress = async () => {
     if (!file || !ffmpegLoaded) return;
     
@@ -201,6 +323,144 @@ const AudioCompressor = () => {
     }
   };
   
+  // Multiple file concatenation
+  const handleConcatenate = async () => {
+    if (audioFiles.length < 2 || !ffmpegLoaded) {
+      if (audioFiles.length < 2) {
+        setError('Please select at least two audio files to concatenate');
+      }
+      return;
+    }
+
+    try {
+      setError(null);
+      setIsProcessing(true);
+      setProgress(0);
+      setStatusMessage('Preparing to concatenate audio files...');
+      
+      // Log file information for debugging
+      console.log('Files to concatenate:', audioFiles.map(item => ({
+        name: item.file.name,
+        type: item.file.type,
+        size: item.file.size
+      })));
+      
+      // Check all file formats for m4a/AAC specifically, which might need special handling
+      const hasM4aFiles = audioFiles.some(item => 
+        item.file.name.toLowerCase().endsWith('.m4a') || 
+        item.file.type === 'audio/mp4' || 
+        item.file.type === 'audio/x-m4a'
+      );
+      
+      if (hasM4aFiles) {
+        console.log('M4A files detected - using special handling');
+        setStatusMessage('Processing M4A files (may take longer)...');
+      }
+      
+      // Simulate progress updates
+      const progressInterval = setInterval(() => {
+        setProgress(prev => {
+          if (prev >= 90) {
+            clearInterval(progressInterval);
+            return 90;
+          }
+          return prev + 5;
+        });
+        
+        // Update status message based on progress
+        setStatusMessage(prev => {
+          const p = progress;
+          if (p < 20) return 'Analyzing audio files...';
+          if (p < 40) return 'Converting to compatible format...';
+          if (p < 60) return 'Flattening metadata...';
+          if (p < 80) return 'Concatenating audio files...';
+          return 'Finalizing concatenated file...';
+        });
+      }, 800);
+      
+      // Get the raw File objects in the correct order
+      const files = audioFiles.map(item => item.file);
+      
+      try {
+        // Start concatenation using the appropriate method
+        let concatenated;
+        
+        if (hasM4aFiles || format === 'aac' || format === 'm4a') {
+          // Use the specialized M4A concatenation method
+          console.log('Using specialized M4A concatenation method');
+          setStatusMessage('Using specialized method for M4A files...');
+          
+          concatenated = await concatenateM4aFiles(
+            ffmpegRef.current,
+            files,
+            format === 'aac' ? 'm4a' : format,
+            bitrate,
+            sampleRate,
+            channels
+          );
+        } else {
+          // Use the standard concatenation method for other formats
+          concatenated = await concatenateAudioFiles(
+            ffmpegRef.current,
+            files,
+            format === 'aac' ? 'm4a' : format,
+            bitrate,
+            sampleRate,
+            channels
+          );
+        }
+        
+        // Create a URL for the concatenated file
+        const url = URL.createObjectURL(concatenated);
+        
+        // Create a combined name from the first and last file
+        const firstName = audioFiles[0].file.name.split('.')[0];
+        const lastName = audioFiles[audioFiles.length - 1].file.name.split('.')[0];
+        const combinedName = `${firstName}_to_${lastName}`;
+        
+        setCompressedFile({
+          url,
+          name: `concatenated_${combinedName}.${format === 'aac' ? 'm4a' : format}`,
+          size: concatenated.size,
+          type: concatenated.type
+        });
+        
+        clearInterval(progressInterval);
+        setProgress(100);
+        setStatusMessage('Concatenation complete!');
+        
+        // Clear status message after 3 seconds
+        setTimeout(() => {
+          setStatusMessage('');
+        }, 3000);
+      } catch (processingError) {
+        clearInterval(progressInterval);
+        
+        console.error('Concatenation error:', processingError);
+        
+        // More detailed error messages for specific errors
+        let errorMessage = processingError.message;
+        
+        if (errorMessage.includes('FS error') || errorMessage.includes('undefined')) {
+          errorMessage = 'File system error during concatenation. This might be due to incompatible audio formats or bitrates.';
+          
+          if (hasM4aFiles) {
+            errorMessage += ' M4A/AAC files can be problematic - try converting them to MP3 first or use a different format.';
+          }
+        }
+        
+        setError(`Concatenation failed: ${errorMessage}`);
+        setStatusMessage('');
+      }
+    } catch (err) {
+      console.error('Concatenation error:', err);
+      setError(`Concatenation failed: ${err.message || 'Unknown error'}`);
+      setStatusMessage('');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+  
   const handleDownload = () => {
     if (!compressedFile) return;
     
@@ -221,9 +481,16 @@ const AudioCompressor = () => {
   };
   
   const calculateCompressionRatio = () => {
-    if (!file || !compressedFile) return null;
-    const ratio = (file.size / compressedFile.size).toFixed(2);
-    return ratio;
+    if (isMultiFileMode) {
+      if (!audioFiles.length || !compressedFile) return null;
+      const totalSize = audioFiles.reduce((sum, file) => sum + file.file.size, 0);
+      const ratio = (totalSize / compressedFile.size).toFixed(2);
+      return ratio;
+    } else {
+      if (!file || !compressedFile) return null;
+      const ratio = (file.size / compressedFile.size).toFixed(2);
+      return ratio;
+    }
   };
 
   // Function to display format name
@@ -236,11 +503,16 @@ const AudioCompressor = () => {
     }
   };
   
+  // Calculate total size of all files
+  const calculateTotalSize = () => {
+    return audioFiles.reduce((sum, file) => sum + file.file.size, 0);
+  };
+  
   return (
     <div className="audio-compressor">
       <Link to="/" className="back-button">← Back to Tools</Link>
       
-      <h2>Audio Compression Tool</h2>
+      <h2>Audio Processing Tool</h2>
       
       {error && (
         <div className="alert alert-error">{error}</div>
@@ -250,24 +522,109 @@ const AudioCompressor = () => {
         <div className="status-message">{statusMessage}</div>
       )}
       
-      <div className="form-group">
-        <label className="form-label">Select Audio File</label>
-        <input
-          type="file"
-          accept="audio/*"
-          onChange={handleFileChange}
-          className="form-control"
+      <div className="mode-toggle">
+        <button 
+          className={`mode-button ${!isMultiFileMode ? 'active' : ''}`}
+          onClick={() => setIsMultiFileMode(false)}
           disabled={isProcessing}
-        />
+        >
+          Single File Compression
+        </button>
+        <button 
+          className={`mode-button ${isMultiFileMode ? 'active' : ''}`}
+          onClick={() => setIsMultiFileMode(true)}
+          disabled={isProcessing}
+        >
+          Multi-File Concatenation
+        </button>
       </div>
       
-      {file && (
+      {isMultiFileMode ? (
         <>
-          <div className="file-info">
-            <strong>File:</strong> {file.name} ({formatFileSize(file.size)})
+          <div className="form-group">
+            <label className="form-label">Select Audio Files to Concatenate</label>
+            <p className="help-text">Files will be joined in the order shown below. You can reorder them using the arrow buttons.</p>
+            <input
+              type="file"
+              accept="audio/*"
+              onChange={handleMultipleFileChange}
+              className="form-control"
+              multiple
+              disabled={isProcessing}
+            />
           </div>
           
-          {originalAudioUrl && (
+          {audioFiles.length > 0 && (
+            <div className="audio-files-list">
+              <h3>Selected Files <span className="file-count">({audioFiles.length} files, {formatFileSize(calculateTotalSize())})</span></h3>
+              <div className="file-list-header">
+                <div className="file-order">#</div>
+                <div className="file-name">Filename</div>
+                <div className="file-size">Size</div>
+                <div className="file-preview">Preview</div>
+                <div className="file-actions">Actions</div>
+              </div>
+              {audioFiles.map((audioFile, index) => (
+                <div key={audioFile.id} className="audio-file-item">
+                  <div className="file-order">{index + 1}</div>
+                  <div className="file-name">{audioFile.file.name}</div>
+                  <div className="file-size">{formatFileSize(audioFile.file.size)}</div>
+                  <div className="file-preview">
+                    <audio controls src={audioFile.previewUrl} className="mini-audio-preview"></audio>
+                  </div>
+                  <div className="file-actions">
+                    <button 
+                      onClick={() => moveFileUp(audioFile.id)}
+                      disabled={index === 0 || isProcessing}
+                      className="icon-button move-up"
+                      title="Move earlier in sequence"
+                    >
+                      ↑
+                    </button>
+                    <button 
+                      onClick={() => moveFileDown(audioFile.id)}
+                      disabled={index === audioFiles.length - 1 || isProcessing}
+                      className="icon-button move-down"
+                      title="Move later in sequence"
+                    >
+                      ↓
+                    </button>
+                    <button 
+                      onClick={() => removeFile(audioFile.id)}
+                      disabled={isProcessing}
+                      className="icon-button remove"
+                      title="Remove file"
+                    >
+                      ×
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      ) : (
+        <div className="form-group">
+          <label className="form-label">Select Audio File</label>
+          <input
+            type="file"
+            accept="audio/*"
+            onChange={handleFileChange}
+            className="form-control"
+            disabled={isProcessing}
+          />
+        </div>
+      )}
+      
+      {(file || audioFiles.length > 0) && (
+        <>
+          {!isMultiFileMode && file && (
+            <div className="file-info">
+              <strong>File:</strong> {file.name} ({formatFileSize(file.size)})
+            </div>
+          )}
+          
+          {!isMultiFileMode && originalAudioUrl && (
             <div className="original-audio">
               <h3>Original Audio</h3>
               <audio controls src={originalAudioUrl} className="audio-preview"></audio>
@@ -287,6 +644,17 @@ const AudioCompressor = () => {
                   <option key={fmt} value={fmt}>{getFormatDisplayName(fmt)}</option>
                 ))}
               </select>
+              {isMultiFileMode && (format === 'aac' || format === 'm4a') && (
+                <div className="format-warning">
+                  <strong>Note:</strong> M4A/AAC files may cause issues when concatenating, especially with different bitrates. 
+                  MP3 is more reliable for concatenation. If you encounter problems, try:
+                  <ul>
+                    <li>Using MP3 format instead</li>
+                    <li>Converting your files to MP3 before uploading</li>
+                    <li>Making sure all input files have the same bitrate</li>
+                  </ul>
+                </div>
+              )}
             </div>
             
             <div className="form-group">
@@ -311,12 +679,10 @@ const AudioCompressor = () => {
                 className="form-control"
                 disabled={isProcessing}
               >
-                <option value="8000">8,000 Hz</option>
-                <option value="11025">11,025 Hz</option>
-                <option value="22050">22,050 Hz</option>
+                <option value="16000">16,000 Hz</option>
+                <option value="32000">32,000 Hz</option>
                 <option value="44100">44,100 Hz (CD Quality)</option>
-                <option value="48000">48,000 Hz (DVD Quality)</option>
-                <option value="96000">96,000 Hz (Studio Quality)</option>
+
               </select>
             </div>
             
@@ -335,11 +701,17 @@ const AudioCompressor = () => {
           </div>
           
           <button
-            onClick={handleCompress}
+            onClick={handleProcess}
             className="button button-primary"
-            disabled={isProcessing || !ffmpegLoaded}
+            disabled={
+              isProcessing || 
+              !ffmpegLoaded || 
+              (isMultiFileMode ? audioFiles.length < 2 : !file)
+            }
           >
-            {isProcessing ? 'Compressing...' : 'Compress Audio'}
+            {isProcessing 
+              ? (isMultiFileMode ? 'Concatenating...' : 'Compressing...') 
+              : (isMultiFileMode ? 'Concatenate Files' : 'Compress Audio')}
           </button>
         </>
       )}
@@ -358,17 +730,21 @@ const AudioCompressor = () => {
       
       {compressedFile && (
         <div className="compressed-result">
-          <h3>Compression Complete</h3>
+          <h3>{isMultiFileMode ? 'Concatenation Complete' : 'Compression Complete'}</h3>
           <div className="file-info">
-            <div><strong>Original:</strong> {formatFileSize(file.size)}</div>
-            <div><strong>Compressed:</strong> {formatFileSize(compressedFile.size)}</div>
+            {isMultiFileMode ? (
+              <div><strong>Original Files Total:</strong> {formatFileSize(calculateTotalSize())}</div>
+            ) : (
+              <div><strong>Original:</strong> {formatFileSize(file.size)}</div>
+            )}
+            <div><strong>Output File:</strong> {formatFileSize(compressedFile.size)}</div>
             <div><strong>Compression Ratio:</strong> {calculateCompressionRatio()}:1</div>
           </div>
           
           <audio controls src={compressedFile.url} className="audio-preview"></audio>
           
           <button onClick={handleDownload} className="button button-success">
-            Download Compressed File
+            Download {isMultiFileMode ? 'Concatenated' : 'Compressed'} File
           </button>
         </div>
       )}
