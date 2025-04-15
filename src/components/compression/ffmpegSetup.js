@@ -1,6 +1,5 @@
 import { FFmpeg } from '@ffmpeg/ffmpeg';
 import { fetchFile } from '@ffmpeg/util';
-import config from '../../config';
 
 // This function will load FFmpeg with proper CORS settings
 export const loadFFmpeg = async () => {
@@ -11,104 +10,40 @@ export const loadFFmpeg = async () => {
     console.log(`FFmpeg: ${message}`);
   });
 
-  // Try multiple versions and sources to load FFmpeg
-  const sources = [
-    // First try loading from local files
-    {
+  const localSource = {
       name: 'Local files',
       coreURL: `${window.location.origin}/ffmpeg/ffmpeg-core.js`,
       wasmURL: `${window.location.origin}/ffmpeg/ffmpeg-core.wasm`
-    },
-    // Try version 0.10.1 which is more widely compatible
-    {
-      name: 'unpkg CDN v0.10.1',
-      coreURL: 'https://unpkg.com/@ffmpeg/core@0.10.1/dist/ffmpeg-core.js',
-      wasmURL: 'https://unpkg.com/@ffmpeg/core@0.10.1/dist/ffmpeg-core.wasm'
-    },
-    // Try version 0.11.0
-    {
-      name: 'unpkg CDN v0.11.0',
-      coreURL: 'https://unpkg.com/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js',
-      wasmURL: 'https://unpkg.com/@ffmpeg/core@0.11.0/dist/ffmpeg-core.wasm'
-    },
-    // Try jsdelivr as an alternative CDN
-    {
-      name: 'jsdelivr CDN v0.10.1',
-      coreURL: 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.10.1/dist/ffmpeg-core.js',
-      wasmURL: 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.10.1/dist/ffmpeg-core.wasm'
-    }
-  ];
+  };
 
-  let lastError = null;
-
-  // Try each source
-  for (const source of sources) {
-    try {
-      console.log(`Attempting to load FFmpeg from ${source.name}`);
-      
-      // Try the simple load approach first
-      try {
-        await ffmpeg.load({
-          coreURL: source.coreURL,
-          wasmURL: source.wasmURL
-        });
-        
-        console.log(`FFmpeg loaded successfully from ${source.name}`);
-        return ffmpeg;
-      } catch (simpleLoadError) {
-        console.warn(`Simple load from ${source.name} failed:`, simpleLoadError);
-        
-        // Try with corePath instead (for older versions)
-        if (source.name.includes('0.10.1')) {
-          try {
-            await ffmpeg.load({
-              corePath: source.coreURL.substring(0, source.coreURL.lastIndexOf('/') + 1)
-            });
-            
-            console.log(`FFmpeg loaded successfully from ${source.name} using corePath`);
-            return ffmpeg;
-          } catch (corePathError) {
-            console.warn(`corePath load from ${source.name} failed:`, corePathError);
-          }
-        }
-        
-        // Continue to next approach
-        throw simpleLoadError;
-      }
-    } catch (error) {
-      console.warn(`Failed to load FFmpeg from ${source.name}:`, error);
-      lastError = error;
-      
-      // If local loading failed and we have a download page, suggest using it
-      if (source.name === 'Local files') {
-        const localFilesExist = await checkIfLocalFilesExist();
-        if (!localFilesExist) {
-          // If we have a ffmpeg downloader page, show message about it
-          const downloaderExists = await checkIfResourceExists('/ffmpeg/index.html');
-          if (downloaderExists) {
-            console.warn('Local FFmpeg files not found. Please download them using the downloader page.');
-            const error = new Error('Local FFmpeg files not found. Please download them from /ffmpeg/index.html');
-            error.isLocalFilesError = true;
-            error.downloaderUrl = `${window.location.origin}/ffmpeg/index.html`;
-            throw error;
-          }
-        }
-      }
-    }
-  }
-  
-  // If we get here, all loading attempts failed
-  console.error('All FFmpeg loading approaches failed:', lastError);
-  throw new Error(`Failed to load FFmpeg: ${lastError?.message || 'Unknown error'}`);
-};
-
-// Helper function to check if local FFmpeg files exist
-const checkIfLocalFilesExist = async () => {
   try {
-    const response = await fetch(`${window.location.origin}/ffmpeg/ffmpeg-core.js`, { method: 'HEAD' });
-    return response.ok;
+    console.log(`Attempting to load FFmpeg from ${localSource.name}`);
+    await ffmpeg.load({
+      coreURL: localSource.coreURL,
+      wasmURL: localSource.wasmURL,
+      // workerURL: `${window.location.origin}/ffmpeg/ffmpeg-core.worker.js` // Uncomment if worker file is present and needed
+    });
+    
+    console.log(`FFmpeg loaded successfully from ${localSource.name}`);
+    return ffmpeg;
   } catch (error) {
-    return false;
+    console.error(`Failed to load FFmpeg from ${localSource.name}:`, error);
+    // Check if the specific files seem to be missing
+    const coreExists = await checkIfResourceExists(localSource.coreURL);
+    const wasmExists = await checkIfResourceExists(localSource.wasmURL);
+
+    let errorMessage = `Failed to load FFmpeg from local files. `; 
+    if (!coreExists) {
+      errorMessage += `Could not find ${localSource.coreURL}. `;
+    }
+    if (!wasmExists) {
+      errorMessage += `Could not find ${localSource.wasmURL}. `;
+    }
+    if (!coreExists || !wasmExists) {
+      errorMessage += `Please ensure ffmpeg-core.js and ffmpeg-core.wasm are present in the /public/ffmpeg/ directory. You may need to download them manually from https://unpkg.com/@ffmpeg/core@0.12.6/dist/`;
+    }
+
+    throw new Error(errorMessage);
   }
 };
 
@@ -546,3 +481,303 @@ export { fetchFile };
 //   concatenateAudioFiles,
 //   concatenateM4aFiles
 // }; 
+
+// Function to extract audio metadata using FFmpeg
+export const getAudioMetadata = async (ffmpeg, file) => {
+  if (!ffmpeg.loaded) {
+    throw new Error('FFmpeg is not loaded');
+  }
+
+  try {
+    // First try using browser's native Audio object to get duration
+    let nativeDuration = 0;
+    let nativeMetadata = {};
+    
+    try {
+      const audioUrl = URL.createObjectURL(file);
+      const audio = new Audio();
+      
+      // Create a promise to wait for metadata to load
+      const metadataPromise = new Promise((resolve, reject) => {
+        audio.onloadedmetadata = () => {
+          nativeDuration = audio.duration;
+          nativeMetadata.duration = audio.duration;
+          resolve();
+        };
+        audio.onerror = () => reject(new Error("Failed to load audio metadata"));
+        // Set timeout in case it hangs
+        setTimeout(() => reject(new Error("Metadata load timeout")), 5000);
+      });
+      
+      // Start loading the audio
+      audio.src = audioUrl;
+      await metadataPromise;
+      URL.revokeObjectURL(audioUrl);
+    } catch (nativeErr) {
+      console.warn('Could not get metadata using native audio:', nativeErr);
+    }
+    
+    // Write the input file to memory for FFmpeg processing
+    const inputFileName = `metadata_${Date.now()}.${file.name.split('.').pop()}`;
+    const fileData = await fetchFile(file);
+    await ffmpeg.writeFile(inputFileName, fileData);
+
+    // Run FFprobe-like command to get stream info
+    await ffmpeg.exec([
+      '-i', inputFileName,
+      '-f', 'null',
+      '-'
+    ]);
+
+    // Get logs from FFmpeg for parsing
+    let logs = '';
+    if (typeof ffmpeg.readLogs === 'function') {
+      logs = ffmpeg.readLogs().join('\n');
+    } else {
+      // For older versions, we can't directly access logs
+      console.warn('ffmpeg.readLogs not available, limited metadata extraction');
+    }
+
+    // Try to parse metadata from logs - more robust patterns
+    const durationMatch = logs.match(/Duration: (\d+):(\d+):(\d+\.\d+)/);
+    const bitrateMatch = logs.match(/bitrate[:\s]+(\d+) kb\/s/i);
+    
+    // More flexible audio format regex
+    const audioMatch = logs.match(/Audio: ([^,]+)(?:.*?)(\d+)(?:\s*)Hz(?:.*?)(\d+(?:\.\d+)?)(?:\s*)ch|\b(mono|stereo)\b/i);
+    
+    // More specific pattern for m4a/mp4 files
+    const mp4Match = logs.match(/Stream #0:(\d+).*?: Audio: ([^,]+)(?:.*?)(\d+) Hz, ([^,]+)/);
+
+    let duration = nativeDuration;
+    if (durationMatch) {
+      const hours = parseInt(durationMatch[1]);
+      const minutes = parseInt(durationMatch[2]);
+      const seconds = parseFloat(durationMatch[3]);
+      duration = hours * 3600 + minutes * 60 + seconds;
+    }
+
+    // Get bitrate information
+    let bitrate = 'Unknown';
+    if (bitrateMatch) {
+      bitrate = parseInt(bitrateMatch[1]) + ' kb/s';
+    }
+
+    // Get codec, sample rate and channels
+    let codec = 'Unknown';
+    let sampleRate = 'Unknown';
+    let channels = 'Unknown';
+
+    if (audioMatch) {
+      codec = audioMatch[1] ? audioMatch[1].trim() : 'Unknown';
+      sampleRate = audioMatch[2] ? audioMatch[2] + ' Hz' : 'Unknown';
+      
+      // Check if we have channel info
+      if (audioMatch[3]) {
+        channels = audioMatch[3] + ' ' + (audioMatch[3] === '1' ? '(Mono)' : '(Stereo)');
+      } else if (audioMatch[4]) {
+        channels = audioMatch[4] === 'mono' ? '1 (Mono)' : '2 (Stereo)';
+      }
+    } else if (mp4Match) {
+      // Try MP4 specific pattern
+      codec = mp4Match[2] ? mp4Match[2].trim() : 'Unknown';
+      sampleRate = mp4Match[3] ? mp4Match[3] + ' Hz' : 'Unknown';
+      channels = mp4Match[4] ? mp4Match[4].trim() : 'Unknown';
+      
+      if (channels === 'stereo') channels = '2 (Stereo)';
+      else if (channels === 'mono') channels = '1 (Mono)';
+    }
+
+    // For m4a files specifically, try using the container type
+    if (codec === 'Unknown' && file.name.toLowerCase().endsWith('.m4a')) {
+      codec = 'AAC (most likely)';
+    }
+
+    // Clean up
+    await ffmpeg.deleteFile(inputFileName);
+
+    return {
+      duration,
+      bitrate,
+      codec,
+      sampleRate,
+      channels,
+      ...nativeMetadata
+    };
+  } catch (error) {
+    console.error('Error getting audio metadata:', error);
+    
+    // Try to get at least duration from native browser API as a last resort
+    try {
+      const audioUrl = URL.createObjectURL(file);
+      const audio = new Audio();
+      
+      // Create a promise to wait for metadata to load
+      const durationPromise = new Promise((resolve) => {
+        audio.onloadedmetadata = () => {
+          resolve(audio.duration);
+        };
+        audio.onerror = () => resolve(0);
+        setTimeout(() => resolve(0), 3000);
+      });
+      
+      audio.src = audioUrl;
+      const duration = await durationPromise;
+      URL.revokeObjectURL(audioUrl);
+      
+      return {
+        duration,
+        bitrate: 'Unknown',
+        codec: 'Unknown',
+        sampleRate: 'Unknown',
+        channels: 'Unknown'
+      };
+    } catch (e) {
+      console.warn('Complete metadata extraction failure:', e);
+      return {
+        duration: 0,
+        bitrate: 'Unknown',
+        codec: 'Unknown',
+        sampleRate: 'Unknown',
+        channels: 'Unknown'
+      };
+    }
+  }
+};
+
+// Simplified function to split audio into chunks with minimal complexity
+export const splitAudioFile = async (ffmpeg, file, chunkDurationMinutes, overlapSeconds = 3, outputFormat = 'mp3') => {
+  if (!ffmpeg.loaded) {
+    throw new Error('FFmpeg is not loaded');
+  }
+
+  try {
+    // Very simple approach with minimal processing
+    // Step 1: Load file
+    const inputFileName = 'input.' + file.name.split('.').pop();
+    const fileData = await fetchFile(file);
+    await ffmpeg.writeFile(inputFileName, fileData);
+
+    // Step 2: Just get duration using HTML5 Audio
+    let duration = 0;
+    try {
+      // Use a promise with timeout to get duration safely
+      const url = URL.createObjectURL(file);
+      duration = await new Promise((resolve, reject) => {
+        const audio = new Audio();
+        const timeout = setTimeout(() => {
+          resolve(0); // Default to 0 on timeout
+        }, 5000);
+        
+        audio.onloadedmetadata = () => {
+          clearTimeout(timeout);
+          resolve(audio.duration || 0);
+        };
+        
+        audio.onerror = () => {
+          clearTimeout(timeout);
+          resolve(0); // Don't crash on error
+        };
+        
+        audio.src = url;
+      });
+      
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      // Just log and continue with duration=0
+      console.warn('Error getting duration:', e);
+    }
+    
+    // If we couldn't get duration, throw now before doing any FFmpeg work
+    if (!duration || duration <= 0) {
+      throw new Error('Could not determine audio duration');
+    }
+    
+    // Step 3: Calculate basic segment points (chunk duration in seconds)
+    const chunkSeconds = chunkDurationMinutes * 60;
+    const outputFiles = [];
+    
+    // Generate segments with very simple math
+    let position = 0;
+    let index = 1;
+    
+    // Use a simple while loop with a safety counter
+    let safetyCounter = 0;
+    const maxSegments = 100; // Reasonable limit
+    
+    while (position < duration && safetyCounter < maxSegments) {
+      safetyCounter++; // Prevent infinite loops
+      
+      // Simple segment calculation
+      const segmentDuration = Math.min(chunkSeconds, duration - position);
+      
+      // Skip if segment would be too short
+      if (segmentDuration < 5) {
+        break;
+      }
+      
+      // Unique output filename
+      const outputFileName = `output_${index}.${outputFormat}`;
+      
+      // Execute FFmpeg with minimal options
+      await ffmpeg.exec([
+        '-i', inputFileName,
+        '-ss', position.toString(),
+        '-t', segmentDuration.toString(),
+        '-c:a', getCodecForFormat(outputFormat),
+        '-b:a', '128k', // Fixed bitrate for simplicity
+        outputFileName
+      ]);
+      
+      // Read the output and create a blob
+      const outputData = await ffmpeg.readFile(outputFileName);
+      const blob = new Blob([outputData], { type: getMimeType(outputFormat) });
+      
+      // Format times for filenames (simple format)
+      const startTime = formatTime(position);
+      const endTime = formatTime(position + segmentDuration);
+      
+      // Add file to results
+      outputFiles.push({
+        blob,
+        name: `${file.name.split('.')[0]}_part${index}_${startTime}-${endTime}.${outputFormat}`,
+        startTime,
+        endTime,
+        duration: segmentDuration
+      });
+      
+      // Clean up segment file immediately
+      await ffmpeg.deleteFile(outputFileName);
+      
+      // Move to next segment (with overlap)
+      position += segmentDuration - overlapSeconds;
+      index++;
+    }
+    
+    // Clean up input file
+    await ffmpeg.deleteFile(inputFileName);
+    
+    // Return results if we have any
+    if (outputFiles.length === 0) {
+      throw new Error('No segments were created');
+    }
+    
+    return outputFiles;
+  } catch (error) {
+    // Ensure any error is properly converted to a string
+    const message = error?.message || 'Unknown error';
+    throw new Error('Splitting failed: ' + message);
+  }
+};
+
+// Simple time formatter (avoid complexity)
+function formatTime(seconds) {
+  const hrs = Math.floor(seconds / 3600);
+  const mins = Math.floor((seconds % 3600) / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${pad(hrs)}.${pad(mins)}.${pad(secs)}`;
+}
+
+// Simple zero-padding
+function pad(num) {
+  return num.toString().padStart(2, '0');
+} 

@@ -30,6 +30,11 @@ const config = {
       id: 'template3',
       name: 'Orthopaedic Assessment Report',
       path: '/templates/orthopaedic-assessment-template.txt'
+    },
+    {
+      id: 'template4',
+      name: 'Pain Medicine Report',
+      path: '\public\templates\pain-assessment-template.txt'
     }
   ],
   
@@ -37,18 +42,26 @@ const config = {
   modelSettings: {
     // Template generation settings
     templateGeneration: {
-      model: 'gpt-4o-mini',
-      maxTokens: 16000,
+      model: 'gpt-4.1',
+      maxTokens: 32000,
       temperature: 0.1,
       responseFormat: { type: "text" }  // Ensures raw text output
     },
     
     // Medical document processing settings
     documentProcessing: {
-      model: 'gpt-4o-mini',
-      maxTokens: 16000,
+      model: 'gpt-4.1',
+      maxTokens: 32000,
       temperature: 0.1,
       responseFormat: { type: "text" }  // Ensures raw text output
+    },
+    
+    // Transcription cleanup settings
+    transcriptionCleanup: {
+      model: 'gpt-4.1-mini', 
+      maxTokens: 32000,     
+      temperature: 0.1, 
+      responseFormat: { type: "text" } 
     }
   },
   
@@ -57,7 +70,7 @@ const config = {
     // Template generation prompt
     templateGeneration: `You are a medicolegal template generation assistant. 
 You will be provided with a Letter of Instruction ("LOI") and a Blank Template.
-Your task is to create a comprehensive template document that an expert can easily fill in, based on the Letter of Instruction. 
+Your task is to create a comprehensive template document that an expert can easily fill in, based on the Letter of Instruction. You must ONLY fill in fields in the template between {{ and }}.  DO NOT delete {{ or }}.  You must put the information from the LOI that belongs in the field BETWEEN the {{ and }}. Do not touch any text between << and >> or [ and ] or [[ and ]], nor any text unmarked in any similar way.  Make sure you complete every {{}} field, and if you do not know how to fill it correctly, fill it with "**XXXX**".
 Information you should pull from the Letter of Instruction:
 * The instructed expert's title, name, and medical specialty (if mentioned)
 * The Instructing Solicitor's name, position, firm, address, phone number, email address. If the solicitor's name is not provided, or the requester is not a solicitor, use firm's name, or the name of the evident contact person at the firm in the appropriate places.
@@ -98,12 +111,23 @@ Additional instructions:
 * If the template does not provide room for all information an expert gives in a particular field, just repeat the pattern as necessary.
 * Use conservative judgement. Again, do what you think a good typist would do with a dictation, and understand that you must preserve the expert's words (while deferring to the LOI for spellings). Every word in the transcript must be either included in the report as content, or executed on as an instruction
 * Create a brief header to the document with the following information (if known): Requesting solicitor, solicitor's address, relevant Court jurisdiction (e.g. Supreme Court of Queensland), date of report request, examinee's full name, examinee's date of birth, examinee's occupation.
-* Do not use full stops after titles such as Mister (e.g. Mr. becomes simply Mr) and change spellings from American English to British English where applicable.  Wherever the expert refers to the subject of the report by their given name, change it to their title and surname.`
+* Do not use full stops after titles such as Mister (e.g. Mr. becomes simply Mr) and change spellings from American English to British English where applicable.  Wherever the expert refers to the subject of the report by their given name, change it to their title and surname.`,
+    
+    // Transcription cleanup prompt
+    transcriptionCleanup: `You are an assistant that cleans up raw speech-to-text transcripts.
+You will receive raw transcript text. Your task is to think of yourself as a typist, and consider what a human typist with good judgement would do if they had the dictation from which the transcript is derived in their ear:
+*  Correct obvious spelling and grammatical errors that likely resulted from the transcription process.  Do not add or remove words unless completely and unambiguously necessary for sensemaking.
+*  Remove filler words (like "um", "uh", "you know") unless they seem intentionally part of the speech.
+*  Where the transcription gives simple direction, such as "stop" or "paragraph" or "in quotes" do your best to carry out what you think the expert meant for the typist to do with that information
+*  Where the transcript gives complex direction (e.g. "insert my CV", "put that in a table", or "leave that blank") just leave that instruction in the text in **bold**
+*  If something looks like a heading, format it as a heading. Add paragraph breaks wherever seems natural in the absence of direction from the expert.
+*  Do NOT change the meaning or omit substantive parts of the transcript. Focus on superficial cleanup for readability.
+*  Return the cleaned text in markdown format without code fencing.`
   },
   
   // FFmpeg Configuration
   ffmpeg: {
-    corePath: 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/ffmpeg-core.js',
+    corePath: '/ffmpeg/ffmpeg-core.js',
     defaultBitrate: '32k',
     formats: ['mp3', 'aac', 'opus', 'wav'],
     bitrateOptions: ['16k','32k','64k', '96k']

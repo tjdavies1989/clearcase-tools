@@ -1,0 +1,378 @@
+To {{Court of Tribunal e.g. The Court of Queensland}}
+c/- {{Instructing Solicitor's full name, if unknown use best firm contact}}
+{{Instructing firm}}
+{{Instructing firm's address line 1}}
+{{Instructing firm's address line 2}}
+{{Suburb}} {{State e.g. QLD}} {{Postcode}}
+
+Dear Sir or Madam,
+
+|**INDEPENDENT MEDICAL REPORT**|**{{Expert's title and full name}}**|
+|---|---|
+|Re:|{{Examinee Title and Full Name}}|
+|Date of Birth|{{Examinee date of birth}}|
+|Handedness|{{Examinee's handedness}}|
+|Usual Occupation|{{Examinee's usual occupation}}|
+|Current Occupation|{{Examinee's current occupation}}|
+|Date of Injury|{{Date or dates of injury/incident}}|
+|Requested By|{{Instructing Solicitor's full name}} of {{Instructing Firm}}|
+|Solicitor's Reference|{{Solicitor's reference number or code}}|
+|Date of assessment|{{Date of Assessment}}|
+|Assessment Location|{{Assessment Location or Method e.g. Zoom}}|
+
+
+---
+### Executive Summary
+
+[[expert's executive summary]]
+
+### Material Facts
+
+The following medical report is based on my assessment of {{Examinee Title and Full Name}} unless otherwise attributed.
+
+<<I have referred to the following texts and academic references in the preparation of this report:>>
+[numbered list of texts referred to by expert]
+
+<<The following material was reviewed for the purposes of my assessment:>>
+{{numbered index to brief as per LOI}}
+
+### Education and Work History
+
+[examinee's education and work history]
+
+### Details of Injury
+
+[details and circumstances of injury]
+
+### Initial Treatment
+
+[details of initial treatment received following injury]
+
+<<### Further Treatment>>
+
+[details of further treatment received]
+
+### Physical Conditions
+
+[physical conditions, if listed then make list numbered]
+
+### Psychological/Psychiatric Conditions
+
+[psychological and/or psychiatric conditions, if listed then make list numbered]
+
+### Current Treatment
+
+[details of current treatment received]
+
+|Medication|Purpose|Dose and Frequency|
+|---|---|---|
+|[drug]|[drug purpose]|[dose and frequency]|
+|[drug]|[drug purpose]|[dose and frequency]|
+
+[previous medications, if applicable]
+
+### Proposed Treatments
+
+[proposed treatments]
+
+### Activities of Independent Daily Living
+
+3 = Independent  2 = Reduced Capacity  1 = Assistance Required  0 = Dependent
+| **Category**     | **Activity**                              |   **Capacity**  |
+|------------------|-------------------------------------------|:---------------:|
+| **Personal Care**| Mobility & Transferring                   |       [#]       |
+|                  | Toileting & Elimination                   |       [#]       |
+|                  | Washing / Showering & Hygiene             |       [#]       |
+|                  | Dressing                                  |       [#]       |
+|                  | Feeding & Meal Preparation                |       [#]       |
+|                  | Sleep Quality                             |       [#]       |
+| **Home Care**    | Walking & Ambulation                      |       [#]       |
+|                  | Food & Grocery Shopping                   |       [#]       |
+|                  | Home Chores                               |       [#]       |
+|                  | Laundry                                   |       [#]       |
+| **Environment**  | Driving & Transport                       |       [#]       |
+|                  | Garden & Home Maintenance                 |       [#]       |  
+|                  | Childcare                                 |       [#]       |
+|                  | Pet Care                                  |       [#]       |
+
+[Details of current care and assistance received]
+
+### Work and Employment Status
+
+[Details of current work and employment]
+
+### Significant Pre-Existing Medical History
+
+[Details of Pre-Existing Medical History]
+
+### Significant Pre-Existing Surgical History
+
+[Details of Pre-Existing Surgical History]
+
+### Significant Pre-Existing Psychiatric History
+
+[Details of Pre-Existing Psychiatric/Psychological History]
+
+### Social and Family Situation
+
+[Details of Social and Family Situation]
+
+### Recreational Pursuits
+
+[Details of Recreational Pursuits]
+
+### Review of Investigations and Reports
+
+[Report or Investigation], [Type]
+[Author], [Discipline]
+Findings: [Results/Opinion/Conclusion]
+Comment: [Expert's comment]
+
+[Report or Investigation], [Type]
+[Author], [Discipline]
+Findings: [Results/Opinion/Conclusion]
+Comment: [Expert's comment]
+
+[Report or Investigation], [Type]
+[Author], [Discipline]
+Findings: [Results/Opinion/Conclusion]
+Comment: [Expert's comment]
+
+### Examination
+
+I confirm that I have personally conducted the following in-person examination on [examinee full name and title] ["at" or "via"] [address of consultation or "videolink"]. [Examinee] was [unaccompanied/accompanied] by [name and relationship of others present during examination] for their interview and examination.
+
+**General Examination or Observation**
+
+|**Height**|**Weight**|**BMI**|**Gait/Ambulation/General Observation|
+|----------|----------|-------|-------------------------------------|
+|[height in cms]|[weight in kgs]|[BMI]|[expert's comment]           |
+
+[Examinee] [had driven / been driven / used public transport] in order to attend their appointment [with/without] assistance. [Examinee] was a [casually / smartly / shabbily / appropriately dressed] [man/woman], whose grooming and hygiene were [good / intact / poor]. [He/she] was a [good / poor / tangential / adequate historian]. [His/her] behaviour was [inappropriate / appropriate]. [His / Her] [emotional state / psychomotor state] was [normal / agitated / flat / cautious / guarded]. I observed [no / abnormal] illness behaviours. Eye contact was generally [good / poor]. [His / Her] manner was ]cooperative / aggressive / guarded / cautious / anxious]. [His / Her] speech was of [normal / abnormal] rate, rhythm and syntax. There was [no disorder / disorder] in the form, stream or possession of [his/her] thoughts. [His / Her] thought content reflected [frustration / insight / little insight / anger] towards their current situation. 
+
+**Specific Examination or Observation**
+
+The following areas were examined using a goniometer where needed.
+
+<<**Cervical Spine**>>
+
+<<**External Examination**:>> [xxxx]
+
+|                       | **Normal Range °** |
+|-----------------------|--------------------|
+|                       | **Flexion** (50°)  |
+|                       | **Extension** (60°)|
+|                       | **Left rotation** (80°) |
+|                       | **Right rotation** (80°) |
+|                       | **Left lateral flexion** (45°) |
+|                       | **Right lateral flexion** (45°) |
+
+
+**Lumbar Spine**
+
+**External Examination**: [xxxx]
+
+|                       | **Normal Movement °** |
+|-----------------------|-----------------------|
+|                       | **Flexion** (60°)     |
+|                       | **Extension** (25°)   |
+|                       | **Right lateral flexion** (25°) |
+|                       | **Left lateral flexion** (45°)  |
+
+
+**Thoracic Spine**
+
+**External Examination**: [xxxx]
+
+|                       | **Normal Movement °** |
+|-----------------------|-----------------------|
+|                       | **Flexion** (60°)     |
+|                       | **Extension** (25°)   |
+|                       | **Right lateral flexion** (25°) |
+|                       | **Left lateral flexion** (25°)  |
+
+
+**Skeletal Systems**
+
+**Upper Limbs**
+
+**External and General Examination**: [xxxx]
+
+**Shoulders**
+
+**External Examination**: [xxxx]
+
+| **Left Range °**            | **Left Power** | **Normal Movement °**        | **Right Range °** | **Right Power** |
+|-----------------------------|----------------|-------------------------------|-----------------|-------------------|
+|                             |                | **Adduction** (40 - 50°)      |                 |                   |
+|                             |                | **Abduction** (170 - 180°)    |                 |                   |
+|                             |                | **Flexion** (180°)            |                 |                   |
+|                             |                | **Extension** (50°)           |                 |                   |
+|                             |                | **Internal rotation** (80 - 90°) |             |                   |
+|                             |                | **External rotation** (80 - 90°) |             |                   |
+
+**Elbow**
+
+**External Examination**: xxxx
+
+| **Left Range °**            | **Left Power** | **Normal Movement °**         | **Right Power** | **Right Range °**|
+|-----------------------------|----------------|-------------------------------|-----------------|------------------|
+|                             |                | **Flexion** (140°)            |                 |                  |
+|                             |                | **Extension** (0°)            |                 |                  |
+|                             |                | **Pronation** (80°)           |                 |                  |
+|                             |                | **Supination** (70 - 80°)     |                 |                  |
+
+
+**Wrist**
+
+**External Examination**: xxxx
+
+| **Left Range °**            | **Left Strength** | **Normal Movement °**        | **Right Strength** | **Right Range °** |
+|-----------------------------|-------------------|-------------------------------|--------------------|-------------------|
+|                             |                   | **Flexion** (60°)             |                    |                  |
+|                             |                   | **Extension** (60°)           |                    |                   |
+|                             |                   | **Ulnar Deviation** (30°)     |                    |                   |
+|                             |                   | **Radial Deviation** (20°)    |                    |                   |
+
+
+**Hand and Thumb**
+
+**External Examination**: [xxxx]
+
+**Thumbs**
+
+| **Left Range °**            | **Left Strength** | **Normal Movement °**        | **Right Strength** | **Right Range °** |
+|-----------------------------|-------------------|-------------------------------|--------------------|-------------------|
+|                             |                   | **Flex/Ext IPJ** (80/0 to 30) |                    |                   |
+|                             |                  | **Flex/Ext MCPJ** (60/0 to 40)|                    |                    |
+|                             |                   | **Radial Adduction** (8 cm)   |                    |                  |
+|                             |                   | **Abduction** (50°)           |                    |                  |
+|                             |                   | **Opposition** (8 cm)         |                    |                    |
+
+**Fingers**
+
+|                             | **MCP Ext** | **MCP Flexion** | **PIP Ext** | **PIP Flexion** | **DIP Ext** | **DIP Flexion** |
+|-----------------------------|-------------|------------------|-------------|------------------|-------------|------------------|
+| **Left Hand ° (normal range)** | **20**      | **90**           | **0–30**    | **100**          | **0–30**    | **70**           |
+| Index                      |             |                  |             |                  |             |                  |
+| Middle                     |             |                  |             |                  |             |                  |
+| Ring                       |             |                  |             |                  |             |                  |
+| Small                      |             |                  |             |                  |             |                  |
+| **Right Hand ° (normal range)**| **20**      | **90**           | **0–30**    | **100**          | **0–30**    | **70**           |
+| Index                      |             |                  |             |                  |             |                  |
+| Middle                     |             |                  |             |                  |             |                  |
+| Ring                       |             |                  |             |                  |             |                  |
+| Small                      |             |                  |             |                  |             |                  |
+
+
+**Upper Limb Neurological Examination**
+
+**Tendon Reflexes** (+ reduced, ++ normal, +++ brisk)
+
+| **Biceps** | **Triceps** | **Supinator** |
+|------------|-------------|---------------|
+| **Right**  |             |               |
+| **Left**   |             |               |
+
+
+
+**Sensation**
+
+| **Left**                        | **Right**                        |
+|---------------------------------|----------------------------------|
+| Describe motor/sensory/tone     | Describe motor/sensory/tone     |
+| Dermatomal/referred             | Dermatomal/referred             |
+| Insert photo here if required   | Insert photo here if required   |
+
+**Lower Limbs**
+
+**External and General Examination**: [xxxx]
+
+| **Left °**            | **Normal Movement °**      | **Right °**        |
+|-----------------------|----------------------------|--------------------|
+|                       | **Hip extension** (10°)    |                    |
+|                       | **Hip flexion** (120°)     |                    |
+|                       | **Hip abduction** (50°)    |                    |
+|                       | **Hip adduction** (45°)    |                    |
+|                       | **Hip internal rotation** (45°) |                |
+|                       | **Hip external rotation** (45°) |                |
+|                       | **Knee extension** (10°)   |                    |
+|                       | **Knee flexion** (150°)    |                    |
+|                       | **Ankle dorsiflexion** (20°) |                  |
+|                       | **Ankle plantar flexion** (45°) |               |
+|                       | **Ankle inversion** (30°)  |                    |
+|                       | **Ankle eversion** (15°)   |                    |
+
+**Upper Limb Neurological Examination**
+
+**Tendon Reflexes** (+ reduced, ++ normal, +++ brisk)
+
+| **Biceps** | **Triceps** | **Supinator** |
+|------------|-------------|---------------|
+| Right      |             |               |
+| Left       |             |               |
+
+
+**Sensation**
+
+| **Left**                        | **Right**                        |
+|----------------------------------|----------------------------------|
+| Describe motor/sensory/tone     | Describe motor/sensory/tone     |
+| Dermatomal/referred             | Dermatomal/referred             |
+| Insert photo here if required   | Insert photo here if required   |
+
+**Lower Limbs**
+
+**External and General Examination**: xxxx
+
+| **Left °**            | **Normal Movement °**      | **Right °**        |
+|-----------------------|----------------------------|--------------------|
+|                       | **Hip extension** (10°)    |                    |
+|                       | **Hip flexion** (120°)     |                    |
+|                       | **Hip abduction** (50°)    |                    |
+|                       | **Hip adduction** (45°)    |                    |
+|                       | **Hip internal rotation** (45°) |                |
+|                       | **Hip external rotation** (45°) |                |
+|                       | **Knee extension** (10°)   |                    |
+|                       | **Knee flexion** (150°)    |                    |
+|                       | **Ankle dorsiflexion** (20°) |                  |
+|                       | **Ankle plantar flexion** (45°) |               |
+|                       | **Ankle inversion** (30°)  |                    |
+|                       | **Ankle eversion** (15°)   |                    |
+
+
+
+### Opinion
+
+In your letter, dated [Date of LOI], you have asked me to address the following specific questions:
+
+**Question {{1/a/i}}**
+**{{VERBATIM text of the first specific question from LOI}}**
+
+
+
+**Question {{2/b/ii}}**
+**{{VERBATIM text of the second specific question from LOI}}**
+
+
+
+**Question {{3/c/iii}}**
+**{{VERBATIM text of the third specific question from LOI}}**
+
+
+
+**Question {{4/d/iv}}**
+**{{VERBATIM text of the fourth specific question from LOI}}**
+
+
+
+**Code of Conduct**
+{{Expert witness code of conduct, if contained in LOI}}
+
+
+Yours Sincerely
+
+
+
+
+{{expert's title and full name}}

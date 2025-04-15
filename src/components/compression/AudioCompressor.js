@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { loadFFmpeg, compressAudio, concatenateAudioFiles, concatenateM4aFiles } from './ffmpegSetup';
+import { loadFFmpeg, compressAudio, concatenateAudioFiles, concatenateM4aFiles, splitAudioFile, getAudioMetadata } from './ffmpegSetup';
 import config from '../../config';
 
 const AudioCompressor = () => {
@@ -9,7 +9,14 @@ const AudioCompressor = () => {
   
   // New state for multi-file concatenation
   const [isMultiFileMode, setIsMultiFileMode] = useState(false);
+  // New state for file splitting
+  const [isSplitMode, setIsSplitMode] = useState(false);
   const [audioFiles, setAudioFiles] = useState([]);
+  const [splitDuration, setSplitDuration] = useState(10); // Default 10 minutes
+  const [splitFiles, setSplitFiles] = useState([]);
+  
+  // Audio metadata
+  const [audioMetadata, setAudioMetadata] = useState(null);
   
   // Common state
   const [format, setFormat] = useState('mp3');
@@ -108,17 +115,28 @@ const AudioCompressor = () => {
     };
   }, []);
   
-  // Toggle between single file and multi-file mode
-  const toggleMode = () => {
+  // Toggle between modes
+  const toggleMode = (mode) => {
     if (isProcessing) return;
     
-    setIsMultiFileMode(prev => !prev);
+    if (mode === 'compress') {
+      setIsMultiFileMode(false);
+      setIsSplitMode(false);
+    } else if (mode === 'concatenate') {
+      setIsMultiFileMode(true);
+      setIsSplitMode(false);
+    } else if (mode === 'split') {
+      setIsMultiFileMode(false);
+      setIsSplitMode(true);
+    }
     
     // Reset the state when toggling modes
     setFile(null);
     setAudioFiles([]);
     setCompressedFile(null);
     setError(null);
+    setSplitFiles([]);
+    setAudioMetadata(null);
     
     if (originalAudioUrl) {
       URL.revokeObjectURL(originalAudioUrl);
@@ -131,15 +149,23 @@ const AudioCompressor = () => {
         URL.revokeObjectURL(file.previewUrl);
       }
     });
+    
+    // Clean up split files
+    splitFiles.forEach(file => {
+      if (file.url) {
+        URL.revokeObjectURL(file.url);
+      }
+    });
   };
   
-  // Single file selection
-  const handleFileChange = (e) => {
+  // Single file selection with metadata extraction
+  const handleFileChange = async (e) => {
     const selectedFile = e.target.files[0];
     if (selectedFile && selectedFile.type.startsWith('audio/')) {
       setFile(selectedFile);
       setCompressedFile(null);
       setError(null);
+      setSplitFiles([]);
       
       // Create a URL for the original file to preview
       if (originalAudioUrl) {
@@ -147,10 +173,25 @@ const AudioCompressor = () => {
       }
       const url = URL.createObjectURL(selectedFile);
       setOriginalAudioUrl(url);
+      
+      // Fetch audio metadata if FFmpeg is loaded
+      if (ffmpegLoaded && ffmpegRef.current) {
+        try {
+          setStatusMessage('Analysing audio file...');
+          const metadata = await getAudioMetadata(ffmpegRef.current, selectedFile);
+          setAudioMetadata(metadata);
+          setStatusMessage('');
+          console.log('Audio metadata:', metadata);
+        } catch (err) {
+          console.warn('Could not extract audio metadata:', err);
+          setAudioMetadata(null);
+        }
+      }
     } else if (selectedFile) {
       setError('Please select a valid audio file');
       setFile(null);
       setOriginalAudioUrl(null);
+      setAudioMetadata(null);
     }
   };
   
@@ -246,9 +287,15 @@ const AudioCompressor = () => {
     setCompressedFile(null);
   };
   
+  const handleSplitDurationChange = (e) => {
+    setSplitDuration(parseInt(e.target.value));
+  };
+  
   // Process button click handler
   const handleProcess = async () => {
-    if (isMultiFileMode) {
+    if (isSplitMode) {
+      await handleSplitFile();
+    } else if (isMultiFileMode) {
       await handleConcatenate();
     } else {
       await handleCompress();
@@ -461,6 +508,159 @@ const AudioCompressor = () => {
     }
   };
   
+  // File splitting function - simplified for stability
+  const handleSplitFile = async () => {
+    if (!file || !ffmpegLoaded) return;
+    
+    try {
+      // Reset state
+      setError(null);
+      setIsProcessing(true);
+      setProgress(0);
+      setStatusMessage('Starting to process audio file...');
+      
+      // Clean up any previous files
+      if (splitFiles.length > 0) {
+        splitFiles.forEach(f => {
+          if (f.url) URL.revokeObjectURL(f.url);
+        });
+        setSplitFiles([]);
+      }
+      
+      // Use a simple interval for progress updates
+      const progressInterval = setInterval(() => {
+        setProgress(prev => {
+          // Move progress slowly up to 90%
+          if (prev >= 90) return 90;
+          return Math.min(90, prev + 2);
+        });
+      }, 1000);
+      
+      // Update status messages less frequently
+      const messageInterval = setInterval(() => {
+        const currentProgress = progress;
+        
+        if (currentProgress < 30) {
+          setStatusMessage('Analysing audio file...');
+        } else if (currentProgress < 60) {
+          setStatusMessage('Creating audio segments...');
+        } else {
+          setStatusMessage('Finalising files...');
+        }
+      }, 3000);
+      
+      try {
+        // Call the splitting function with minimal options
+        const outputFiles = await splitAudioFile(
+          ffmpegRef.current,
+          file,
+          splitDuration,
+          3, // Standard overlap
+          format
+        );
+        
+        if (outputFiles && outputFiles.length > 0) {
+          // Create blob URLs in a simple loop
+          const results = [];
+          
+          for (const item of outputFiles) {
+            try {
+              const url = URL.createObjectURL(item.blob);
+              results.push({
+                ...item,
+                url
+              });
+            } catch (blobError) {
+              console.warn('Error creating blob URL:', blobError);
+              // Skip this file but continue
+            }
+          }
+          
+          setSplitFiles(results);
+          setProgress(100);
+          setStatusMessage(`Split complete! Created ${results.length} files.`);
+        } else {
+          throw new Error('No output files were created');
+        }
+      } catch (processingError) {
+        throw processingError; // Re-throw to outer handler
+      } finally {
+        // Always clear intervals
+        clearInterval(progressInterval);
+        clearInterval(messageInterval);
+      }
+    } catch (error) {
+      console.error('Error in split operation:', error);
+      
+      // Simple error messages
+      let message = 'File splitting failed';
+      if (error && typeof error.message === 'string') {
+        // Clean up the error message
+        message = error.message
+          .replace(/splitting failed: /gi, '')
+          .replace(/failed to /gi, 'Could not ');
+      }
+      
+      setError(message);
+      setStatusMessage('');
+      setProgress(0);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+  
+  // Download a single split file - simplified
+  const handleDownloadSplitFile = (fileData) => {
+    if (!fileData || !fileData.url) return;
+    
+    try {
+      const a = document.createElement('a');
+      a.href = fileData.url;
+      a.download = fileData.name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Download error:', error);
+      setError('Could not download file');
+    }
+  };
+  
+  // Download all split files - simplified
+  const handleDownloadAllSplitFiles = () => {
+    if (!splitFiles || splitFiles.length === 0) return;
+    
+    try {
+      // Download one file every 500ms to prevent browser issues
+      let index = 0;
+      
+      const downloadNext = () => {
+        if (index >= splitFiles.length) return;
+        
+        const fileData = splitFiles[index++];
+        if (fileData && fileData.url) {
+          const a = document.createElement('a');
+          a.href = fileData.url;
+          a.download = fileData.name;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+        }
+        
+        // Schedule next download
+        if (index < splitFiles.length) {
+          setTimeout(downloadNext, 500);
+        }
+      };
+      
+      // Start the download sequence
+      downloadNext();
+    } catch (error) {
+      console.error('Download all error:', error);
+      setError('Could not download files');
+    }
+  };
+  
   const handleDownload = () => {
     if (!compressedFile) return;
     
@@ -508,6 +708,35 @@ const AudioCompressor = () => {
     return audioFiles.reduce((sum, file) => sum + file.file.size, 0);
   };
   
+  // Format duration as hours:minutes:seconds
+  const formatDuration = (seconds) => {
+    if (!seconds && seconds !== 0) return 'Unknown';
+    
+    const hrs = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+    const secs = Math.floor(seconds % 60);
+    
+    let result = '';
+    if (hrs > 0) {
+      result += `${hrs}h `;
+    }
+    if (mins > 0 || hrs > 0) {
+      result += `${mins}m `;
+    }
+    result += `${secs}s`;
+    
+    return result;
+  };
+  
+  // Get duration from audio element directly
+  const getDurationFromAudio = (audioElement) => {
+    if (!audioElement || !audioElement.duration || isNaN(audioElement.duration)) {
+      return 'Unknown';
+    }
+    
+    return formatDuration(audioElement.duration);
+  };
+  
   return (
     <div className="audio-compressor">
       <Link to="/" className="back-button">← Back to Tools</Link>
@@ -524,22 +753,158 @@ const AudioCompressor = () => {
       
       <div className="mode-toggle">
         <button 
-          className={`mode-button ${!isMultiFileMode ? 'active' : ''}`}
-          onClick={() => setIsMultiFileMode(false)}
+          className={`mode-button ${!isMultiFileMode && !isSplitMode ? 'active' : ''}`}
+          onClick={() => toggleMode('compress')}
           disabled={isProcessing}
         >
           Single File Compression
         </button>
         <button 
           className={`mode-button ${isMultiFileMode ? 'active' : ''}`}
-          onClick={() => setIsMultiFileMode(true)}
+          onClick={() => toggleMode('concatenate')}
           disabled={isProcessing}
         >
           Multi-File Concatenation
         </button>
+        <button 
+          className={`mode-button ${isSplitMode ? 'active' : ''}`}
+          onClick={() => toggleMode('split')}
+          disabled={isProcessing}
+        >
+          Split Audio File
+        </button>
       </div>
       
-      {isMultiFileMode ? (
+      {isSplitMode ? (
+        <>
+          <div className="form-group">
+            <label className="form-label">Select Audio File to Split</label>
+            <input
+              type="file"
+              accept="audio/*"
+              onChange={handleFileChange}
+              className="form-control"
+              disabled={isProcessing}
+            />
+          </div>
+          
+          {file && (
+            <>
+              <div className="file-info">
+                <strong>File:</strong> {file.name} ({formatFileSize(file.size)})
+                {audioMetadata && (
+                  <div className="metadata-display">
+                    <div>
+                      <strong>Duration:</strong> {
+                        audioMetadata.duration > 0 
+                        ? formatDuration(audioMetadata.duration) 
+                        : originalAudioUrl 
+                          ? <span className="loading-duration">Detecting from player...</span>
+                          : 'Unknown'
+                      }
+                    </div>
+                    <div><strong>Bitrate:</strong> {audioMetadata.bitrate}</div>
+                    <div><strong>Sample Rate:</strong> {audioMetadata.sampleRate}</div>
+                    <div><strong>Channels:</strong> {audioMetadata.channels}</div>
+                    <div><strong>Codec:</strong> {audioMetadata.codec}</div>
+                  </div>
+                )}
+              </div>
+              
+              {originalAudioUrl && (
+                <div className="original-audio">
+                  <h3>Original Audio</h3>
+                  <audio 
+                    controls 
+                    src={originalAudioUrl} 
+                    className="audio-preview"
+                    ref={audioElement => {
+                      if (audioElement && audioMetadata && audioMetadata.duration <= 0) {
+                        // Listen for duration once audio is loaded
+                        audioElement.onloadedmetadata = () => {
+                          if (audioElement.duration && !isNaN(audioElement.duration)) {
+                            setAudioMetadata(prev => ({
+                              ...prev,
+                              duration: audioElement.duration
+                            }));
+                          }
+                        };
+                      }
+                    }}
+                  ></audio>
+                </div>
+              )}
+              
+              <div className="split-options">
+                <div className="form-group">
+                  <label className="form-label">Chunk Duration</label>
+                  <select
+                    value={splitDuration}
+                    onChange={handleSplitDurationChange}
+                    className="form-control"
+                    disabled={isProcessing}
+                  >
+                    <option value="5">5 minutes</option>
+                    <option value="10">10 minutes</option>
+                    <option value="15">15 minutes</option>
+                  </select>
+                </div>
+                
+                <div className="form-group">
+                  <label className="form-label">Output Format</label>
+                  <select
+                    value={format}
+                    onChange={handleFormatChange}
+                    className="form-control"
+                    disabled={isProcessing}
+                  >
+                    {config.ffmpeg.formats.map((fmt) => (
+                      <option key={fmt} value={fmt}>{getFormatDisplayName(fmt)}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              
+              <button
+                onClick={handleSplitFile}
+                className="button button-primary"
+                disabled={isProcessing || !ffmpegLoaded || !file}
+              >
+                {isProcessing ? 'Splitting...' : 'Split Audio File'}
+              </button>
+            </>
+          )}
+          
+          {splitFiles.length > 0 && (
+            <div className="split-result">
+              <h3>Split Complete - {splitFiles.length} Files Created</h3>
+              
+              <div className="split-files-container">
+                {splitFiles.map((fileData, index) => (
+                  <div key={index} className="split-file-item">
+                    <div className="split-file-name">{index + 1}. {fileData.name}</div>
+                    <div className="split-file-size">{formatFileSize(fileData.size)}</div>
+                    <audio controls src={fileData.url} className="mini-audio-preview"></audio>
+                    <button 
+                      onClick={() => handleDownloadSplitFile(fileData)}
+                      className="button button-small"
+                    >
+                      Download
+                    </button>
+                  </div>
+                ))}
+              </div>
+              
+              <button 
+                onClick={handleDownloadAllSplitFiles} 
+                className="button button-success"
+              >
+                Download All Files
+              </button>
+            </div>
+          )}
+        </>
+      ) : isMultiFileMode ? (
         <>
           <div className="form-group">
             <label className="form-label">Select Audio Files to Concatenate</label>
@@ -616,18 +981,52 @@ const AudioCompressor = () => {
         </div>
       )}
       
-      {(file || audioFiles.length > 0) && (
-        <>
-          {!isMultiFileMode && file && (
-            <div className="file-info">
-              <strong>File:</strong> {file.name} ({formatFileSize(file.size)})
+      {!isMultiFileMode && !isSplitMode && file && (
+        <div className="file-info">
+          <strong>File:</strong> {file.name} ({formatFileSize(file.size)})
+          {audioMetadata && (
+            <div className="metadata-display">
+              <div>
+                <strong>Duration:</strong> {
+                  audioMetadata.duration > 0 
+                  ? formatDuration(audioMetadata.duration) 
+                  : originalAudioUrl 
+                    ? <span className="loading-duration">Detecting from player...</span>
+                    : 'Unknown'
+                }
+              </div>
+              <div><strong>Bitrate:</strong> {audioMetadata.bitrate}</div>
+              <div><strong>Sample Rate:</strong> {audioMetadata.sampleRate}</div>
+              <div><strong>Channels:</strong> {audioMetadata.channels}</div>
+              <div><strong>Codec:</strong> {audioMetadata.codec}</div>
             </div>
           )}
-          
+        </div>
+      )}
+      
+      {(file || audioFiles.length > 0) && (
+        <>
           {!isMultiFileMode && originalAudioUrl && (
             <div className="original-audio">
               <h3>Original Audio</h3>
-              <audio controls src={originalAudioUrl} className="audio-preview"></audio>
+              <audio 
+                controls 
+                src={originalAudioUrl} 
+                className="audio-preview"
+                ref={audioElement => {
+                  if (audioElement && audioMetadata && audioMetadata.duration <= 0) {
+                    // Listen for duration once audio is loaded
+                    audioElement.onloadedmetadata = () => {
+                      if (audioElement.duration && !isNaN(audioElement.duration)) {
+                        setAudioMetadata(prev => ({
+                          ...prev,
+                          duration: audioElement.duration
+                        }));
+                      }
+                    };
+                  }
+                }}
+              ></audio>
             </div>
           )}
           
@@ -775,5 +1174,112 @@ Cross-Origin-Opener-Policy: same-origin`}
     </div>
   );
 };
+
+// Add CSS styles for the new components
+const styles = `
+  .metadata-display {
+    margin-top: 10px;
+    padding: 10px;
+    background-color: #f8f9fa;
+    border-radius: 5px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 8px;
+  }
+  
+  .split-options {
+    display: flex;
+    gap: 20px;
+    margin: 15px 0;
+  }
+  
+  .split-result {
+    margin-top: 20px;
+    padding: 15px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    background-color: #f9f9f9;
+  }
+  
+  .split-files-container {
+    margin-top: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-height: 400px;
+    overflow-y: auto;
+    padding: 10px;
+    border: 1px solid #eee;
+    border-radius: 4px;
+  }
+  
+  .split-file-item {
+    display: grid;
+    grid-template-columns: 2fr 1fr 2fr 1fr;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    border-bottom: 1px solid #eee;
+  }
+  
+  .split-file-item:last-child {
+    border-bottom: none;
+  }
+  
+  .split-file-name {
+    font-size: 0.9rem;
+    word-break: break-all;
+  }
+  
+  .split-file-size {
+    font-size: 0.8rem;
+    color: #666;
+  }
+  
+  .button-small {
+    padding: 5px 10px;
+    font-size: 0.8rem;
+  }
+  
+  .mode-toggle {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-bottom: 20px;
+  }
+  
+  .loading-duration {
+    display: inline-block;
+    font-style: italic;
+    color: #666;
+    animation: pulse 1.5s infinite;
+  }
+  
+  @keyframes pulse {
+    0% { opacity: 0.6; }
+    50% { opacity: 1; }
+    100% { opacity: 0.6; }
+  }
+  
+  @media (max-width: 768px) {
+    .split-file-item {
+      grid-template-columns: 1fr;
+      gap: 5px;
+    }
+    
+    .mode-toggle {
+      flex-direction: column;
+    }
+    
+    .metadata-display {
+      grid-template-columns: 1fr;
+    }
+  }
+`;
+
+// Inject styles
+const styleElement = document.createElement('style');
+styleElement.textContent = styles;
+document.head.appendChild(styleElement);
 
 export default AudioCompressor; 
